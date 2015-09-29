@@ -1,4 +1,5 @@
 # coding=utf-8
+import logging
 
 from pika.adapters import BaseConnection, TwistedProtocolConnection
 from pika.connection import Parameters
@@ -8,121 +9,170 @@ from twisted.internet.protocol import ClientCreator
 
 __author__ = 'zephor'
 
+logger = logging.getLogger(__name__)
+# logger.setLevel(logging.DEBUG)
 
-class PoolIsFull(Exception):
-    pass
 
-
-class PooledConn(Deferred, object):
+class PooledConn(object):
     """
     """
-
-    __idle_pool = {}
-
-    __using_pool = {}
 
     _my_params = {}
-    _my_instances = {}
+    _my_pools = ({}, {})
+    _timeout = {}
+    _max_size = {}
+    _waiting = {}
 
     max_size = 100
 
+    # retry once by default
     retry = True
 
     timeout_conn = 1
 
     loop = reactor
 
-    def __new__(cls, params, loop=None, timeout_conn=None, max_size=None, *args, **kwargs):
+    def __new__(cls, params, timeout_conn=None, max_size=None):
         """
         :param cls:
         :param params: connection params
-        :param loop: loop to assign
         :param timeout_conn: connection timeout
         :param max_size: max pool size for each connection
-        :param args:
-        :param kwargs:
         :return: PoolConn instance
         """
         if isinstance(params, Parameters):
-            _id = repr(params)
+            _id = repr(params)  # take repr of params for id to identify the pool
             instance = super(PooledConn, cls).__new__(cls)
             if _id in cls._my_params:
                 # always update the params instance
                 cls._my_params[_id] = params
             else:
                 cls._my_params[_id] = params
+                cls._my_pools[0][_id] = {}
+                cls._my_pools[1][_id] = {}
+                cls._max_size[_id] = max_size if max_size else cls.max_size
+                cls._timeout[_id] = timeout_conn if timeout_conn > 0 else cls.timeout_conn
+                cls._waiting[_id] = []
                 # only works when first created
-                instance.max_size = max_size if max_size else cls.max_size
-                instance.loop = loop if loop else cls.loop
-                instance.timeout_conn = timeout_conn if timeout_conn > 0 else cls.timeout_conn
-            # print 'new id', id(cls._my_params[_id])
+            instance.__params = cls._my_params[_id]
+            instance.__max_size = cls._max_size[_id]
+            instance.timeout_conn = cls._timeout[_id]
+            instance.__idle_pool, instance.__using_pool = (cls._my_pools[i][_id] for i in (0, 1))
+            instance.waiting = cls._waiting[_id]
             return instance
         else:
             raise TypeError('only accept pika Parameters type')
 
-    def __init__(self, params, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         """
-        :param params:
         :param args: to keep with the __new__
         :param kwargs: to keep with the __new__
         :return:
         """
-        self._params = params
-        super(self.__class__, self).__init__(self)
-        self.prepare()
+        # self.__params
+        # self.__max_size
+        # self.timeout_conn
+        # self.__idle_pool
+        # self.__using_pool
+        self._conn = None
+        self.__retry = 0
 
-    def __call__(self, conn=None):
-        if isinstance(conn, BaseConnection):
-            # print '__call__', conn
-            _id = id(conn)
-            if _id in self.__idle_pool:
-                # conn is already idle pool
-                pass
-            elif _id in self.__using_pool:
-                # put the conn back to idle
-                self.__idle_pool[_id] = self.__using_pool.pop(_id)
-            elif self.size < self.max_size:
-                # add new conn in using pool
-                self._conn = conn
-                self.__using_pool[_id] = conn
+    def _in_pool(self, conn):
+        assert isinstance(conn, BaseConnection), 'conn must be BaseConnection'
+        logger.debug('in pool : %s' % conn)
+
+        _id = id(conn)
+
+        if self.size < self.__max_size:
+            # add hook to clear the bad connection object in the pool
+            conn.ready = Deferred()
+            conn.ready.addErrback(self._clear, self.__idle_pool, self.__using_pool, conn)
+            # add new conn in using pool
+            self._conn = conn
+            self.__using_pool[_id] = conn
+            self.__retry = 0
+        else:
+            logger.error('__call__, unexpected reach')
+
+        return self.conn
+
+    def release(self):
+        if not isinstance(self._conn, BaseConnection):
+            raise RuntimeError('call release unexpected')
+        _id = id(self._conn)
+        if _id in self.__using_pool:
+            if self.waiting:
+                self.waiting.pop(0).callback(self._conn)
             else:
-                raise PoolIsFull()
-            return conn
-        elif hasattr(self, '_conn'):
-            # print '__call__', 'recover'
-            _id = id(self._conn)
-            if _id in self.__using_pool:
                 # put the conn back to idle
                 self.__idle_pool[_id] = self.__using_pool.pop(_id)
-            elif _id in self.__idle_pool:
-                pass
+                self._conn = None
+
+    @staticmethod
+    def _clear(reason, idle_pool, using_pool, conn):
+        """
+        clear the bad connection
+        :param reason:
+        :param idle_pool:
+        :param using_pool:
+        :param conn:
+        :return:
+        """
+        logger.warn('connection lost, reason:%s' % reason)
+        _id = id(conn)
+        try:
+            idle_pool.pop(_id)
+        except KeyError:
+            using_pool.pop(_id)
+
+    def _retry(self, err):
+        if self.retry and self.__retry < 1:
+            self.__retry += 1
+            return self.__connect()
+        else:
+            return err
 
     def __connect(self):
-        params = self._params
+        # print '__connect'
+        params = self.__params
         cc = ClientCreator(self.loop, TwistedProtocolConnection, params)
         _d = cc.connectTCP(params.host, params.port, timeout=self.timeout_conn)
         _d.addCallback(lambda p: p.ready)
-        _d.addCallback(self)
-        _d.chainDeferred(self)
+        _d.addCallbacks(self._in_pool, self._retry)  # retry when err
+        return _d
 
-    def prepare(self):
+    def prepare(self, canceller=None):
         """
-        makes itself ready to work
-        :return:
+        makes ready to work
+        call it directly to get a Deferred with conn, better to release it back
+        :return: Deferred, fired when connection ready
         """
+        d = Deferred(canceller)
         if self.__idle_pool:
             _id, conn = self.__idle_pool.popitem()
             self.__using_pool[_id] = conn
-            self.addCallback(lambda c: c)
-            self.loop.callLater(0, self.callback, conn)
-        elif self.size == self.max_size:
-            raise PoolIsFull()
+            self._conn = conn
+            self.loop.callLater(0, d.callback, conn)
+        elif self.size >= self.__max_size:
+            self.waiting.append(d)
         else:
-            self.__connect()
+            self.__connect().chainDeferred(d)
+        return d
+
+    @property
+    def conn(self):
+        if self._conn:
+            return self._conn
+        raise AttributeError('no connection available')
 
     @property
     def size(self):
         return len(self.__idle_pool) + len(self.__using_pool)
+
+    def __del__(self):
+        if self._conn:
+            logger.debug('__del__ clear')
+            self.release()
 
 
 if __name__ == '__main__':
