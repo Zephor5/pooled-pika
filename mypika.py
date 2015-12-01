@@ -1,6 +1,8 @@
 # coding=utf-8
 import logging
+import thread
 
+from contextlib import contextmanager
 from pika.adapters import BaseConnection, TwistedProtocolConnection
 from pika.connection import Parameters
 from twisted.internet import reactor
@@ -10,7 +12,17 @@ from twisted.internet.protocol import ClientCreator
 __author__ = 'zephor'
 
 logger = logging.getLogger(__name__)
-# logger.setLevel(logging.DEBUG)
+
+__lock = thread.allocate_lock()
+
+
+@contextmanager
+def _lock():
+    __lock.acquire()
+    try:
+        yield
+    finally:
+        __lock.release()
 
 
 class PooledConn(object):
@@ -104,9 +116,10 @@ class PooledConn(object):
             if self.waiting:
                 self.waiting.pop(0).callback(self._conn)
             else:
-                # put the conn back to idle
-                self.__idle_pool[_id] = self.__using_pool.pop(_id)
-                self._conn = None
+                with _lock():
+                    # put the conn back to idle
+                    self.__idle_pool[_id] = self.__using_pool.pop(_id)
+                    self._conn = None
 
     @staticmethod
     def _clear(reason, idle_pool, using_pool, conn):
@@ -118,12 +131,13 @@ class PooledConn(object):
         :param conn:
         :return:
         """
-        logger.warn('connection lost, reason:%s' % reason)
+        logger.info('connection lost, reason:%s' % reason)
         _id = id(conn)
-        try:
-            idle_pool.pop(_id)
-        except KeyError:
-            using_pool.pop(_id)
+        with _lock():
+            try:
+                idle_pool.pop(_id)
+            except KeyError:
+                using_pool.pop(_id)
 
     def _retry(self, err):
         if self.retry and self.__retry < 1:
@@ -148,12 +162,14 @@ class PooledConn(object):
         :return: Deferred, fired when connection ready
         """
         d = Deferred(canceller)
-        if self.__idle_pool:
-            _id, conn = self.__idle_pool.popitem()
-            self.__using_pool[_id] = conn
-            self._conn = conn
-            self.loop.callLater(0, d.callback, conn)
-        elif self.size >= self.__max_size:
+        with _lock():
+            if self.__idle_pool:
+                _id, conn = self.__idle_pool.popitem()
+                self.__using_pool[_id] = conn
+                self._conn = conn
+                self.loop.callLater(0, d.callback, conn)
+                return d
+        if self.size >= self.__max_size:
             self.waiting.append(d)
         else:
             self.__connect().chainDeferred(d)
@@ -167,7 +183,8 @@ class PooledConn(object):
 
     @property
     def size(self):
-        return len(self.__idle_pool) + len(self.__using_pool)
+        with _lock():
+            return len(self.__idle_pool) + len(self.__using_pool)
 
     def __del__(self):
         if self._conn:
@@ -176,4 +193,5 @@ class PooledConn(object):
 
 
 if __name__ == '__main__':
-    print PooledConn.__mro__
+    with _lock():
+        print PooledConn.__mro__
