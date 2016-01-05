@@ -128,12 +128,14 @@ class PooledConn(object):
         :param conn_id:
         :return:
         """
-        logger.info('connection lost, reason:%s' % reason)
         with _lock():
             try:
                 idle_pool.pop(conn_id)
+                logger.info('a connection lost when not using')
             except KeyError:
-                using_pool.pop(conn_id, None)
+                if using_pool.pop(conn_id, None):
+                    logger.warn('connection lost when using, should be handled later')
+                    return reason
             finally:
                 channel_pool.pop(conn_id, None)
 
@@ -149,6 +151,12 @@ class PooledConn(object):
         if d is None:
             d = conn.channel()
             d.addCallback(lambda ch: p.update({_id: ch}) or setattr(ch, 'pool_id_', _id) or ch)
+
+        def _h_err(ch):
+            conn.ready.addErrback(lambda _, _ch: _ch.close(), ch)
+            return ch
+
+        d.addCallback(_h_err)
         return d
 
     def acquire(self, channel=False):
@@ -172,9 +180,12 @@ class PooledConn(object):
             _id = id(c)
         elif isinstance(c, TwistedChannel):
             _id = c.pool_id_
+            c = self.__using_pool.get(_id, None)
         else:
             return c
         if _id in self.__using_pool:
+            # clear each hook add to ready when using
+            c.ready.callbacks = c.ready.callbacks[:1]
             if self.waiting:
                 self.waiting.pop(0).callback(c)
             else:
