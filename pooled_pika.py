@@ -187,7 +187,3 @@ class PooledConn(object):
         with _lock():
             return len(self.__idle_pool) + len(self.__using_pool)
 
-
-if __name__ == '__main__':
-    with _lock():
-        print PooledConn.__mro__
