@@ -10,6 +10,8 @@ from twisted.internet import reactor, defer
 from twisted.internet.protocol import ClientCreator
 
 __author__ = 'zephor'
+__version__ = '0.1.0'
+__all__ = ["PooledConn"]
 
 logger = logging.getLogger(__name__)
 
