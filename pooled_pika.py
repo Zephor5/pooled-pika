@@ -1,6 +1,6 @@
 # coding=utf-8
 import logging
-import thread
+import threading
 
 from contextlib import contextmanager
 from pika.adapters import TwistedProtocolConnection
@@ -9,13 +9,13 @@ from pika.connection import Parameters
 from twisted.internet import reactor, defer
 from twisted.internet.protocol import ClientCreator
 
-__author__ = 'zephor'
-__version__ = '0.1.0'
-__all__ = ["PooledConn"]
+__all__ = ["VERSION", "PooledConn"]
+
+VERSION = "0.1.1"
 
 logger = logging.getLogger(__name__)
 
-__lock = thread.allocate_lock()
+__lock = threading.Lock()
 
 
 @contextmanager
