@@ -1,11 +1,9 @@
-import pooled_pika
-
 from setuptools import setup, find_packages
 
 
 setup(
     name="pooled-pika",
-    version=pooled_pika.__version__,
+    version="0.1.1",
     py_modules=["pooled_pika"],
     install_requires=["twisted>=13.2.0", "pika>=0.10.0"],
     description="a connection pool wrapper about async pika",
