@@ -1,13 +1,15 @@
+import pooled_pika
+
 from setuptools import setup, find_packages
 
-import pooled_pika
 
 setup(
     name="pooled-pika",
     version=pooled_pika.__version__,
     py_modules=["pooled_pika"],
+    install_requires=["twisted>=13.2.0", "pika>=0.10.0"],
     description="a connection pool wrapper about async pika",
-    description_long="""
+    long_description="""
 Notice
 ------
 just support twisted connection now
