@@ -3,7 +3,6 @@ python:
   - '2.7'
 install:
   - pip install -U tox
-  - pip install -r requirements.txt
 script: tox
 cache:
   directories:
