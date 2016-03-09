@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="pooled-pika",
-    version="0.1.1",
+    version="0.1.2",
     py_modules=["pooled_pika"],
     install_requires=["twisted>=13.2.0", "pika>=0.10.0"],
     description="a connection pool wrapper about async pika",
