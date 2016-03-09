@@ -11,7 +11,7 @@ from twisted.internet.protocol import ClientCreator
 
 __all__ = ["VERSION", "PooledConn"]
 
-VERSION = "0.1.1"
+VERSION = "0.1.2"
 
 logger = logging.getLogger(__name__)
 
@@ -39,9 +39,6 @@ class PooledConn(object):
     _waiting = {}
 
     max_size = 100
-
-    # retry once by default
-    retry = True
 
     timeout_conn = 1
 
@@ -93,13 +90,12 @@ class PooledConn(object):
         # self.__using_pool
         # self.__channel_pool
 
-    def __connect(self, retrying=False):
+    def __connect(self):
         params = self.__params
         cc = ClientCreator(self.loop, TwistedProtocolConnection, params)
         _d = cc.connectTCP(params.host, params.port, timeout=self.timeout_conn)
         _d.addCallback(lambda p: p.ready)
-        _d.addCallbacks(self._in_pool,
-                        lambda err: err if retrying or not self.retry else self.__connect(True))  # retry once when err
+        _d.addCallback(self._in_pool)
         return _d
 
     def _in_pool(self, conn):
@@ -199,4 +195,3 @@ class PooledConn(object):
     def size(self):
         with _lock():
             return len(self.__idle_pool) + len(self.__using_pool)
-
