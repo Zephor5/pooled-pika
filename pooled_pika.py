@@ -11,7 +11,7 @@ from twisted.internet.protocol import ClientCreator
 
 __all__ = ["VERSION", "PooledConn"]
 
-VERSION = "0.1.2"
+VERSION = "0.1.3"
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +39,9 @@ class PooledConn(object):
     _waiting = {}
 
     max_size = 100
+
+    # retry once by default
+    retry = True
 
     timeout_conn = 1
 
@@ -90,12 +93,13 @@ class PooledConn(object):
         # self.__using_pool
         # self.__channel_pool
 
-    def __connect(self):
+    def __connect(self, retrying=False):
         params = self.__params
         cc = ClientCreator(self.loop, TwistedProtocolConnection, params)
         _d = cc.connectTCP(params.host, params.port, timeout=self.timeout_conn)
         _d.addCallback(lambda p: p.ready)
-        _d.addCallback(self._in_pool)
+        _d.addCallbacks(self._in_pool,
+                        lambda err: err if retrying or not self.retry else self.__connect(True))  # retry once when err
         return _d
 
     def _in_pool(self, conn):
@@ -150,11 +154,11 @@ class PooledConn(object):
             d = conn.channel()
             d.addCallback(lambda ch: p.update({_id: ch}) or setattr(ch, 'pool_id_', _id) or ch)
 
-        def _h_err(ch):
-            conn.ready.addErrback(lambda _, _ch: _ch.close(), ch)
+        def _h_err(ch, _conn):
+            _conn.ready.addErrback(lambda _, _c: p.pop(id(_c), None), _conn)
             return ch
 
-        d.addCallback(_h_err)
+        d.addCallback(_h_err, conn)
         return d
 
     def acquire(self, channel=False):
@@ -195,3 +199,8 @@ class PooledConn(object):
     def size(self):
         with _lock():
             return len(self.__idle_pool) + len(self.__using_pool)
+
+    def clear(self):
+        with _lock():
+            for c in self.__idle_pool.itervalues():
+                c.close()
