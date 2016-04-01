@@ -11,7 +11,7 @@ from twisted.internet.protocol import ClientCreator
 
 __all__ = ["VERSION", "PooledConn"]
 
-VERSION = "0.1.4"
+VERSION = "0.1.5"
 
 logger = logging.getLogger(__name__)
 
@@ -166,11 +166,12 @@ class PooledConn(object):
         if channel:
             d.addCallback(self._get_channel)
         with _lock():
-            if self.__idle_pool:
+            while self.__idle_pool:
                 _id, conn = self.__idle_pool.popitem()
-                self.__using_pool[_id] = conn
-                d.callback(conn)
-                return d
+                if conn.is_open():
+                    self.__using_pool[_id] = conn
+                    d.callback(conn)
+                    return d
         if self.size >= self.__max_size:
             self.waiting.append(d)
         else:
