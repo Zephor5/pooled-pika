@@ -1,3 +1,10 @@
+dist: xenial
+addons:
+  apt:
+    packages:
+      - rabbitmq-server
+services:
+  - rabbitmq
 language: python
 python:
   - '2.7'
@@ -6,7 +13,7 @@ python:
   - '3.8'
 install:
   - pip install -U tox
-script: tox
+script: tox -e $(echo py$TRAVIS_PYTHON_VERSION | tr -d .)
 cache:
   directories:
     - $HOME/.cache/pip
@@ -14,6 +21,6 @@ deploy:
   provider: pypi
   user: zephor5
   password:
-    secure: TNTQ/ZdP7ygaJTKdNop+KOqGXRghchl/8UUH5tM5P+fnFxrGBitVvWYlurhhHphjRWFXify0k4uCU3D14OIRTyPAKtC5wBqWCwV+hWx2C0T332ou8lowczvN/uEWLNnoJKiiS2127QBLUHEoFR2/LKdchCvVY7n4gnYzjkCnXin45/CdOV88065xAriO4/UG11Q2ohMTmP5Vm6z51102aPySTqwPQJB5ywg3Q7uUs2CZjQIa7IUV7ZXe/lGe0bs5jF24A1i6Vrdt5PykRuTdIsjsvvcnD4ghHpB5XOlev5OFWaXyCqAvjfZySjYaD6Tv1EJbGDZb/sTxps/7CRixCkJX7CDY6a2krMRxdq38zGnFjRN5/R9Fb5fbjQnrGgJusi0oLbNuzm1tSb37rdddYqK79iWBEUSt+nnu5LZL3FlPz6cxld8kBQId7juZ+aFY/Y6bThSB7WIVgouY8gW7t9NKDGisGrc0xYk38dH6EblYKbOQ/J4eYMqmrmgcGm71S2b4q5jOA+PJF/7NLUP7wmYyqi/6WficFsV4DDzd1wPHs7yBMwPXpNvgpPJ74iNiFIdI+HzL6LblMmTBm0EB+8Q6iYwK3GVJulrQwW5H5xaIABJNnOgMU5fQcGT5N76jbP2xHu79ZgBFzhE4fiNAlnSKnCN+qfX4TmEz09A8P1g=
+    secure: MF4/A+5Fecy9uuEttFKxQm7IIUULS+BgCji0oy7vyeRdcZvu7IrvgSVhz6nMOCw7ljcFLnQcQMb2M7Zau+6G29XJv1iR6YjXM+tWIBUysgm3DaY6QOXlxd4etI4ixYPTjeRSe7mWv3ZA+ziEg/4s/R/P50g+IFfqtBOTZoRgzWfskKqSa7UWLz8QCeBu4kET3T6EYSz4Xkpte1suMt81VVeLBMfNMcTM0lGUyjaDO3apojYWrusnupfAmBP5fB89Wun05fyPmkvNU5xVW1Ff4iC1zNPYWjJhiT/AR7DOxjbqwWZ9DDoDyGuzSy6hL9t1sF8vw/pTHPf0gXxalHS0NUIkSXgKvyFuWGIUOmayFoT44MXwaja1Wv7ZFWehq79mzcvmaAoB5GtzQXSQKy0m2gXh08uJ0MrLKHrtI4cSAtqWczAz4kzJxnwXZwNc69TuSqphOFTwk9YCekFXG2lkaMJwXw1Q1chM5x0urqNZp18YJfLhbl5lPhvXqm80dWpxMOD7hlxG1i/tBHj9NrKz6HOt+RC3OKpsmgk8a8Km8hHAK9LmAWKjkqP9Nn4GyngbMgvqjE9LVVMLwFx3NIRL2V3+1KzIfwR1w2nkMsp3l6kVre3W0OVq/c9CHgWI+v3V4OcVWTiBSp8ClUkI3dfKnGxAbf4oFMG1POTerwpS2I0=
   on:
     tags: true
