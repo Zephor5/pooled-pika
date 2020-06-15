@@ -1,17 +1,24 @@
 # coding=utf-8
 import logging
 import threading
-
 from contextlib import contextmanager
-from pika.adapters import TwistedProtocolConnection
+
 from pika.adapters.twisted_connection import TwistedChannel
+from pika.adapters.twisted_connection import TwistedProtocolConnection
 from pika.connection import Parameters
-from twisted.internet import reactor, defer
+from twisted.internet import defer
+from twisted.internet import reactor
 from twisted.internet.protocol import ClientCreator
+
+try:
+    itervalues = dict.itervalues
+except AttributeError:
+    itervalues = dict.values
 
 __all__ = ["VERSION", "PooledConn"]
 
-VERSION = "0.1.6"
+
+VERSION = "0.2.0"
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +54,7 @@ class PooledConn(object):
 
     loop = reactor
 
-    def __new__(cls, params, timeout_conn=None, max_size=None):
+    def __new__(cls, params, timeout_conn=0, max_size=None):
         """
         :param cls:
         :param params: connection params
@@ -67,18 +74,22 @@ class PooledConn(object):
                 cls._my_pools[1][_id] = {}
                 cls._my_channels[_id] = {}
                 cls._max_size[_id] = max_size if max_size else cls.max_size
-                cls._timeout[_id] = timeout_conn if timeout_conn > 0 else cls.timeout_conn
+                cls._timeout[_id] = (
+                    timeout_conn if timeout_conn > 0 else cls.timeout_conn
+                )
                 cls._waiting[_id] = []
                 # only works when first created
             instance.__params = cls._my_params[_id]
             instance.__max_size = cls._max_size[_id]
             instance.timeout_conn = cls._timeout[_id]
-            instance.__idle_pool, instance.__using_pool = (cls._my_pools[i][_id] for i in (0, 1))
+            instance.__idle_pool, instance.__using_pool = (
+                cls._my_pools[i][_id] for i in (0, 1)
+            )
             instance.__channel_pool = cls._my_channels[_id]
             instance.waiting = cls._waiting[_id]
             return instance
         else:
-            raise TypeError('only accept pika Parameters type')
+            raise TypeError("only accept pika Parameters type")
 
     def __init__(self, *args, **kwargs):
         """
@@ -97,25 +108,40 @@ class PooledConn(object):
         params = self.__params
         cc = ClientCreator(self.loop, TwistedProtocolConnection, params)
         _d = cc.connectTCP(params.host, params.port, timeout=self.timeout_conn)
-        _d.addCallback(lambda p: p.ready)
-        _d.addCallbacks(self._in_pool,
-                        lambda err: err if retrying or not self.retry else self.__connect(True))  # retry once when err
+
+        def conn_ready(c):
+            c.ready.addCallback(lambda _: c)
+            return c.ready
+
+        _d.addCallback(conn_ready)
+        _d.addCallbacks(
+            self._in_pool,
+            lambda err: err if retrying or not self.retry else self.__connect(True),
+        )  # retry once when err
         return _d
 
     def _in_pool(self, conn):
-        assert isinstance(conn, TwistedProtocolConnection), 'conn must be TwistedProtocolConnection'
-        logger.debug('in pool : %s' % conn)
+        assert isinstance(
+            conn, TwistedProtocolConnection
+        ), "conn must be TwistedProtocolConnection"
+        logger.debug("in pool : %s" % conn)
 
         _id = id(conn)
 
         if self.size < self.__max_size:
             # add hook to clear the bad connection object in the pool
             conn.ready = defer.Deferred()
-            conn.ready.addErrback(self._clear, self.__idle_pool, self.__using_pool, self.__channel_pool, _id)
+            conn.ready.addErrback(
+                self._clear,
+                self.__idle_pool,
+                self.__using_pool,
+                self.__channel_pool,
+                _id,
+            )
             # add new conn in using pool
             self.__using_pool[_id] = conn
         else:
-            raise RuntimeError('_in_pool, unexpected reach')
+            raise RuntimeError("_in_pool, unexpected reach")
 
         return conn
 
@@ -133,10 +159,10 @@ class PooledConn(object):
         with _lock():
             try:
                 idle_pool.pop(conn_id)
-                logger.info('a connection lost when not using')
+                logger.info("a connection lost when not using")
             except KeyError:
                 if using_pool.pop(conn_id, None):
-                    logger.warn('connection lost when using, should be handled later')
+                    logger.warn("connection lost when using, should be handled later")
                     return reason
             finally:
                 channel_pool.pop(conn_id, None)
@@ -152,7 +178,9 @@ class PooledConn(object):
                 d.callback(p[_id])
         if d is None:
             d = conn.channel()
-            d.addCallback(lambda ch: p.update({_id: ch}) or setattr(ch, 'pool_id_', _id) or ch)
+            d.addCallback(
+                lambda ch: p.update({_id: ch}) or setattr(ch, "pool_id_", _id) or ch
+            )
 
         def _h_err(ch, _conn):
             _conn.ready.addErrback(lambda _, _c: p.pop(id(_c), None), _conn)
@@ -203,5 +231,5 @@ class PooledConn(object):
 
     def clear(self):
         with _lock():
-            for c in self.__idle_pool.itervalues():
+            for c in itervalues(self.__idle_pool):
                 c.close()

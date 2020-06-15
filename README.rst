@@ -28,7 +28,7 @@ sample:
     # with connection
     from pika import URLParameters
     from pooled_pika import PooledConn
-    
+
     AMQP_PARAM = URLParameters('amqp://user:pwd@amqpserver')
     pooled_conn = PooledConn(AMQP_PARAM)
     d = pooled_conn.acquire()
@@ -43,7 +43,7 @@ or:
     # with channel
     from pika import URLParameters
     from pooled_pika import PooledConn
-    
+
     AMQP_PARAM = URLParameters('amqp://user:pwd@amqpserver')
     pooled_conn = PooledConn(AMQP_PARAM)
     d = pooled_conn.acquire(channel=True)

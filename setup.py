@@ -1,11 +1,12 @@
-from setuptools import setup, find_packages
+from setuptools import find_packages
+from setuptools import setup
 
 
 setup(
     name="pooled-pika",
-    version="0.1.6",
+    version="0.2.0",
     py_modules=["pooled_pika"],
-    install_requires=["twisted>=13.2.0", "pika>=0.10.0"],
+    install_requires=["twisted~=20.3.0", "pika~=1.1.0"],
     description="a connection pool wrapper about async pika",
     long_description="""
 Notice
@@ -21,7 +22,7 @@ sample:
     # with connection
     from pika import URLParameters
     from pooled_pika import PooledConn
-    
+
     AMQP_PARAM = URLParameters('amqp://user:pwd@amqpserver')
     pooled_conn = PooledConn(AMQP_PARAM)
     d = pooled_conn.acquire()
@@ -36,7 +37,7 @@ or:
     # with channel
     from pika import URLParameters
     from pooled_pika import PooledConn
-    
+
     AMQP_PARAM = URLParameters('amqp://user:pwd@amqpserver')
     pooled_conn = PooledConn(AMQP_PARAM)
     d = pooled_conn.acquire(channel=True)
@@ -48,6 +49,5 @@ or:
     author_email="zephor@qq.com",
     url="https://github.com/Zephor5/pooled-pika",
     license="BSD 3-clause",
-    packages=find_packages()
+    packages=find_packages(),
 )
-
