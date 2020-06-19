@@ -19,10 +19,19 @@ cache:
   - "$HOME/.cache/pip"
 jobs:
   include:
-  - stage: deploy
-      provider: pypi
-      user: __token__
-      password:
-        secure: XKqqRfy5V6c9fm/sGlKdQUI+L+7KY3uS7maK2+pmB0YUyg5faWhklB0FGk5OX2TAPB7knt5Itp7gvAo+Ff9GVaVkjxLXd7BTUJDCHziBYS7dxqjImZnXrZPreIWgg48WqzgNyNEMicSLDmbmLnziUUkK/Z1aFGVYmrnez3fwnOjHoMWxN2NpHFpu+SzuXCkR7KvItIu6ibi89fLfeQ2zdwdmFohH/eEmjMfEcDgJkTFU9ph6xtdkY8JvQ/X7usGsH7ELO2o2Xesaw6P2tKbdRp1UwMCQvuBBbtvA93x/9RfWUlxOWUZ1SoNTSfN9eITbFjECDinbU43jXPLan5xfm96W3bUF/Ua/zifB4BlDHzIWtFk90a21tF5qgKj0/W9FnaMPKbjaPmRJIrt6egUEmsTGuasjDbSDoXYv5073gIuZBaZBAaDgh9ahNZHndcHDq88pYAJuCasRASVPJPKNvoLkk3CNRRroSwYaDpBELVzX4thSPknXvzOLfqWPHFCXY7CpTJ9917EHdK1JJS57B3C31085td7skRy0Wi636vne3y9DkHe1zNK2GOUu22BUMkiXsnxkquCBdMn2KJMPkk4Px+9FosMfAbpevRDwPxPxfXZ/WTYT0/aq8vZiQiVUPkvma+/HqRUTKYOgKMiSvaQVSsTgmwMmF3ZyJLuVoqs=
-      on:
-        tags: true
+    - stage: deploy
+        python:
+          - '3.8'
+        install:
+          - pip install -U tox
+        script: tox -e $(echo py$TRAVIS_PYTHON_VERSION | tr -d .)
+        cache:
+          directories:
+            - "$HOME/.cache/pip"
+        deploy:
+          provider: pypi
+          user: __token__
+          password:
+            secure: XKqqRfy5V6c9fm/sGlKdQUI+L+7KY3uS7maK2+pmB0YUyg5faWhklB0FGk5OX2TAPB7knt5Itp7gvAo+Ff9GVaVkjxLXd7BTUJDCHziBYS7dxqjImZnXrZPreIWgg48WqzgNyNEMicSLDmbmLnziUUkK/Z1aFGVYmrnez3fwnOjHoMWxN2NpHFpu+SzuXCkR7KvItIu6ibi89fLfeQ2zdwdmFohH/eEmjMfEcDgJkTFU9ph6xtdkY8JvQ/X7usGsH7ELO2o2Xesaw6P2tKbdRp1UwMCQvuBBbtvA93x/9RfWUlxOWUZ1SoNTSfN9eITbFjECDinbU43jXPLan5xfm96W3bUF/Ua/zifB4BlDHzIWtFk90a21tF5qgKj0/W9FnaMPKbjaPmRJIrt6egUEmsTGuasjDbSDoXYv5073gIuZBaZBAaDgh9ahNZHndcHDq88pYAJuCasRASVPJPKNvoLkk3CNRRroSwYaDpBELVzX4thSPknXvzOLfqWPHFCXY7CpTJ9917EHdK1JJS57B3C31085td7skRy0Wi636vne3y9DkHe1zNK2GOUu22BUMkiXsnxkquCBdMn2KJMPkk4Px+9FosMfAbpevRDwPxPxfXZ/WTYT0/aq8vZiQiVUPkvma+/HqRUTKYOgKMiSvaQVSsTgmwMmF3ZyJLuVoqs=
+          on:
+            tags: true
