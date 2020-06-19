@@ -196,7 +196,7 @@ class PooledConn(object):
         with _lock():
             while self.__idle_pool:
                 _id, conn = self.__idle_pool.popitem()
-                if conn.is_open:
+                if conn._impl.is_open:
                     self.__using_pool[_id] = conn
                     d.callback(conn)
                     return d
