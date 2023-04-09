@@ -7,6 +7,7 @@ setup(
     version="0.3.0",
     py_modules=["pooled_pika"],
     install_requires=["twisted~=22.10.0", "pika~=1.3.0"],
+    python_requires=">=3.7,<3.10",
     description="a connection pool wrapper about async pika",
     long_description="""
 Notice

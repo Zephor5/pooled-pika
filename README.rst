@@ -9,8 +9,8 @@ mypika
    :target: https://pypi.org/pypi/pooled-pika
    :alt: PyPI Monthly downloads
 
-.. image:: https://img.shields.io/travis/Zephor5/pooled-pika/master.svg
-   :target: https://app.travis-ci.com/Zephor5/pooled-pika.svg?branch=master
+.. image:: https://github.com/Zephor5/pooled-pika/actions/workflows/build.yml/badge.svg?branch=master
+   :target: https://github.com/Zephor5/pooled-pika/actions/workflows/build.yml
    :alt: Build Status
 
 a connection pool wrapper about async pika, using twisted
