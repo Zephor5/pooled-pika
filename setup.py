@@ -4,9 +4,9 @@ from setuptools import setup
 
 setup(
     name="pooled-pika",
-    version="0.2.1",
+    version="0.3.0",
     py_modules=["pooled_pika"],
-    install_requires=["twisted~=20.3.0", "pika~=1.1.0"],
+    install_requires=["twisted~=22.10.0", "pika~=1.3.0"],
     description="a connection pool wrapper about async pika",
     long_description="""
 Notice

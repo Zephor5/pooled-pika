@@ -2,18 +2,20 @@ mypika
 ======
 
 .. image:: https://img.shields.io/pypi/v/pooled-pika.svg
-   :target: https://pypi.python.org/pypi/pooled-pika
+   :target: https://pypi.org/pypi/pooled-pika
    :alt: PyPI Version
 
 .. image:: https://img.shields.io/pypi/dm/pooled-pika.svg
-   :target: https://pypi.python.org/pypi/pooled-pika
+   :target: https://pypi.org/pypi/pooled-pika
    :alt: PyPI Monthly downloads
 
 .. image:: https://img.shields.io/travis/Zephor5/pooled-pika/master.svg
-   :target: http://travis-ci.org/Zephor5/pooled-pika
+   :target: https://app.travis-ci.com/Zephor5/pooled-pika.svg?branch=master
    :alt: Build Status
 
-a connection pool wrapper about async pika, using twisted TODO tornado and so on
+a connection pool wrapper about async pika, using twisted
+
+TODO tornado and so on
 
 Notice
 ------

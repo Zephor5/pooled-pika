@@ -15,7 +15,7 @@ try:
 except NameError:
     pass
 
-AMQP_PARAM = URLParameters("amqp://guest:guest@localhost:5672")
+AMQP_PARAM = URLParameters("amqp://guest:guest@127.0.0.1")
 
 
 def sleep(_, seconds):
@@ -27,9 +27,12 @@ def sleep(_, seconds):
 class ConnTest(TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.pooled_conn = PooledConn(AMQP_PARAM,)
+        cls.pooled_conn = PooledConn(
+            AMQP_PARAM,
+        )
 
     def test_get_conn(self):
+        con_count = 100
         self.n = 0
         test_d = []
 
@@ -37,14 +40,14 @@ class ConnTest(TestCase):
             self.n += 1
             return _c
 
-        for i in range(100):
+        for i in range(con_count):
             d = self.pooled_conn.acquire(channel=True)
             d.addCallback(plus)
             d.addCallback(self.pooled_conn.release)
             d.addErrback(lambda err: logging.error(err))
             test_d.append(d)
         res_d = defer.DeferredList(test_d)
-        res_d.addCallback(lambda _: self.assertEqual(self.n, 100))
+        res_d.addCallback(lambda _: self.assertEqual(self.n, con_count))
         res_d.addCallback(lambda _: self.pooled_conn.clear())
         res_d.addCallback(sleep, 1)
         return res_d

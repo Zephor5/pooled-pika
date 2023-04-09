@@ -56,5 +56,7 @@ docs/_build/
 # PyBuilder
 target/
 
-.idea/
-.env/
+.idea
+.env
+venv
+_trial_temp

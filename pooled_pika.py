@@ -35,8 +35,7 @@ def _lock():
 
 
 class PooledConn(object):
-    """
-    """
+    """ """
 
     _my_params = {}
     _my_pools = ({}, {})
@@ -162,7 +161,9 @@ class PooledConn(object):
                 logger.info("a connection lost when not using")
             except KeyError:
                 if using_pool.pop(conn_id, None):
-                    logger.warn("connection lost when using, should be handled later")
+                    logger.warning(
+                        "connection lost when using, should be handled later"
+                    )
                     return reason
             finally:
                 channel_pool.pop(conn_id, None)
